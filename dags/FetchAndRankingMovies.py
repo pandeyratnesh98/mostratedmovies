@@ -141,7 +141,7 @@ with DAG(
         rm_gibberish_year_rows = rm_genres.loc[
             rm_genres['release_year'].apply(lambda x: str(x).isdigit() and int(x) > 1850)]
         # movies sorted by ratings and years
-        movies_sorted = rm_gibberish_year_rows.sort_values(['release_year', 'avg_rating'])
+        movies_sorted = rm_gibberish_year_rows.sort_values(['release_year', 'avg_rating'], ascending=False)
         logger.info("some latest release with highest ratings")
         logger.info(movies_sorted.head(25))
 
