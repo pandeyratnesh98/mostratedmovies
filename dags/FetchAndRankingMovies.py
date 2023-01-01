@@ -9,7 +9,6 @@ import requests
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-
 MOVIEREC_HOST = os.environ.get("MOVIEREC_HOST", "movierec")
 MOVIEREC_SCHEMA = os.environ.get("MOVIEREC_SCHEMA", "http")
 MOVIEREC_PORT = os.environ.get("MOVIEREC_PORT", "5000")
@@ -143,7 +142,7 @@ with DAG(
         # movies sorted by ratings and years
         movies_sorted = rm_gibberish_year_rows.sort_values(['release_year', 'avg_rating'], ascending=False)
         logger.info("some latest release with highest ratings")
-        logger.info(movies_sorted.head(25))
+        logger.info(movies_sorted.head(25).to_string())
 
         # Make sure output directory exists.
         output_dir = os.path.dirname(output_path + "/movies/movieswithavgratings.json")
@@ -160,5 +159,21 @@ with DAG(
         },
     )
 
-    fetch_each_movieapi_node >> get_avg_ratings
+
+    def upload_to_s3(filename: str, key: str, bucket_name: str) -> None:
+        hook = S3Hook('aws_s3_bucket')
+        hook.load_file(filename=filename, key=key, bucket_name=bucket_name)
+
+
+    upload_movies_data_to_s3 = PythonOperator(
+        task_id='upload_to_s3',
+        python_callable=upload_to_s3,
+        op_kwargs={
+            'filename': '/data/python/movies/movieswithavgratings.json',
+            'key': 'movies.json',
+            'bucket_name': 'airflow-movies-bucket'
+        }
+    )
+
+    fetch_each_movieapi_node >> get_avg_ratings >> upload_movies_data_to_s3
 # expression to fetch data inside the parenthesis: (?<=\().+?(?=\))
